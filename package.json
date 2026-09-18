@@ -1,0 +1,13 @@
+{
+  "name": "codebuddy-issue-to-pr-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal task manager for demonstrating the CodeBuddy Issue-to-PR workflow",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
