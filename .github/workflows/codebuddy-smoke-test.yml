@@ -1,0 +1,56 @@
+name: CodeBuddy CLI smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+
+      - name: Install pinned CodeBuddy CLI
+        run: npm install --global @tencent-ai/codebuddy-code@2.155.0
+
+      - name: Verify API key is configured
+        env:
+          CODEBUDDY_API_KEY: ${{ secrets.CODEBUDDY_API_KEY }}
+        run: |
+          if [[ -z "$CODEBUDDY_API_KEY" ]]; then
+            echo "Repository secret CODEBUDDY_API_KEY is not configured." >&2
+            exit 1
+          fi
+
+      - name: Run read-only smoke test
+        env:
+          CODEBUDDY_API_KEY: ${{ secrets.CODEBUDDY_API_KEY }}
+          CODEBUDDY_CODE_DISABLE_BACKGROUND_TASKS: "1"
+        run: |
+          printf '{"mcpServers":{}}\n' > "$RUNNER_TEMP/empty-mcp.json"
+          codebuddy -p "Reply with exactly: CODEBUDDY_SMOKE_OK" \
+            --output-format json \
+            --max-turns 1 \
+            --tools "" \
+            --mcp-config "$RUNNER_TEMP/empty-mcp.json" \
+            --strict-mcp-config \
+            --no-session-persistence \
+            > "$RUNNER_TEMP/codebuddy-smoke.json"
+          node -e '
+            const fs = require("node:fs");
+            const output = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            if (!JSON.stringify(output).includes("CODEBUDDY_SMOKE_OK")) {
+              throw new Error("CodeBuddy smoke-test response did not contain the expected marker");
+            }
+          ' "$RUNNER_TEMP/codebuddy-smoke.json"
